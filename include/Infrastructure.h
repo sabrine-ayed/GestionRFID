@@ -67,11 +67,35 @@ class IFile : public IHardwareComponent{
 };
 
 /// @brief RFID component service
-class IRfid : public IHardwareComponent {
-public:
-    virtual void pinMode(uint8_t pin, uint8_t mode) = 0;
-    virtual void attachInterrupt(uint8_t pin, void (*ISR)(), int mode) = 0;
-    virtual unsigned long millis() = 0;
+class IReemasRfid : public IHardwareComponent {
+    public:
+  enum class Event
+  {
+    BIT_RECEIVED,
+    TIMEOUT,
+    CARD_DETECTED,
+    INVALID_PARITY
+  };
+
+  enum class StateId
+  {
+    IDLE,
+    RECEIVING,
+    PROCESSING
+  };
+
+  virtual ~IReemasRfid() = default;
+  
+  // Méthodes publiques de l'interface
+  virtual void begin() = 0;
+  virtual void handleEvent(Event event) = 0;
+  virtual bool isCardDetected() const = 0;
+  virtual uint32_t getCardId() const = 0;
+  virtual bool isValid() const = 0;
+  virtual void reset() = 0;
+  virtual void pinMode(uint8_t pin, uint8_t mode) = 0;
+  virtual void attachInterrupt(uint8_t pin, void (*ISR)(), int mode) = 0;
+  virtual unsigned long millis() = 0;
     
  
 };
@@ -84,9 +108,9 @@ class IHardwareInfrastructure {
     IDigital *digital;
     ITimer *timer;
     IFile *file;
-    IRfid *rfid;
+    IReemasRfid *rfid;
 
-    IHardwareInfrastructure(ISerial& s, IRom& r, IDigital& d, ITimer& t, IFile& f,IRfid&  rf)
+    IHardwareInfrastructure(ISerial& s, IRom& r, IDigital& d, ITimer& t, IFile& f,IReemasRfid&  rf)
         : serial{&s}, rom{&r}, digital{&d}, timer{&t}, file{&f}, rfid{&rf} {}
     virtual ~IHardwareInfrastructure() = default;
 };

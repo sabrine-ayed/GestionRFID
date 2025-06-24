@@ -1,7 +1,6 @@
 #include "SpcBusiness.h"
 #include <cmath>
 #include<EEPROM.h>
-#include <../lib/Infrastructure/RfidCommunication/ReemasRfid.hpp>
 
 
 

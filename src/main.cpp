@@ -1,7 +1,8 @@
 #include <Arduino.h>
 #include "../include/BSP.hpp"
 
-#include "../lib/Infrastructure/RfidCommunication/ReemasRfid.hpp"
+#include "PlatformHardware.h"
+#include "PlatformHardware.cpp"
 
 
 BSP bsp;

@@ -4,7 +4,6 @@
 #include <Infrastructure.h>
 #include <ReemasSpcConfig.hpp>
  #include <LittleFS.h>
-#include <../lib/Infrastructure/RfidCommunication/ReemasRfid.hpp>
 #include<EEPROM.h>
 #pragma region Definition
 

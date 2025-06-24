@@ -1,4 +1,177 @@
-#include "ReemasRfid.hpp"
+/*#include "PlatformHardware.h"
+#include "RfidDatabase.h"
+#include"../lib/Spc/SpcBusiness.h"
+#include "ReemasProtocol.h"
+//#include "Infrastructure.h"
+//class ReemasSerial
+#include "ReemasRfid.h"*/
+#include "PlatformHardware.h"
+#include <EEPROM.h>
+#include <LittleFS.h>
+
+
+
+ReemasSerial::ReemasSerial(HardwareSerial& s){
+    hSerial = &s;
+}
+
+ReemasSerial::ReemasSerial(HardwareSerial& s, size_t maxBufferRx){
+    hSerial = &s;
+    hSerial->setRxBufferSize(maxBufferRx);
+}
+
+int ReemasSerial::availableForReading(){
+    return hSerial->available();
+}
+int ReemasSerial::availableForWriting(){
+    return hSerial->availableForWrite();
+}
+int ReemasSerial::read(char* buffer, int sizeBuffer){
+    return hSerial->read(buffer,sizeBuffer);
+}
+int ReemasSerial::write(char* buffer, int sizeBuffer){
+    return hSerial->write(buffer, sizeBuffer);
+}
+bool ReemasSerial::isErrorReading(){
+    return false;// to be reviewed
+}
+bool ReemasSerial::isErrorWriting(){
+    return hSerial->getWriteError();
+}
+
+void ReemasSerial::flush(){
+    hSerial->flush(false);
+}
+
+
+//class ReemasTimer
+ReemasTimer::ReemasTimer(hw_timer_t& ht){
+    _timerComponent = &ht;
+}
+
+void ReemasTimer::AttachInterrupt(void (*fn)(void), bool edge){
+    timerAttachInterrupt(this->_timerComponent, fn, edge);
+}
+
+void ReemasTimer::AlarmWrite( int count, bool loop){
+    timerAlarmWrite(this->_timerComponent, count,  loop);
+}
+void ReemasTimer::AlarmEnable(){
+    timerAlarmEnable(this->_timerComponent);
+}
+void ReemasTimer::AlarmDisable(){
+    timerAlarmDisable(this->_timerComponent);
+}
+
+hw_timer_t* ReemasTimer::GetArduinoTimer(){
+    return _timerComponent;
+}
+
+//class DigitalIO
+int ReemasDigital::ReadDigital(int gpio){
+    return digitalRead(gpio);
+}
+
+void ReemasDigital::WriteDigital(int gpio, int value){
+    digitalWrite(gpio,value);
+}
+
+//class ReemasRom 
+
+ReemasRom::ReemasRom(int eepromSize,int beginAddress, int valueSize){
+     EEPROM.begin(eepromSize);
+     this->_eepromSize = eepromSize;
+     this->_beginAddress = beginAddress;
+     this->_valueSize = valueSize;
+}
+int ReemasRom::GetRomSize(){
+    return this->_eepromSize;
+}
+
+int ReemasRom::GetBeginAddress(){
+    return this->_beginAddress;
+}
+
+int ReemasRom::GetValueSize(){
+    return this->_valueSize;
+}
+
+void ReemasRom::SaveByteToROM(char address,char data){
+    EEPROM.write(address, data);
+    EEPROM.commit();
+}
+char ReemasRom::ReadByteFromROM(char address){
+    return (char)EEPROM.read(address);
+}
+
+void ReemasRom::SaveToROM(int index,int value){
+    for(int i=0; i < this->_valueSize ; i++){ //COUNTER_SIZE
+      char data = (value >> (8*i)) & 0xff;
+      SaveByteToROM((char)(this->_beginAddress + (this->_valueSize * index) + i),data); //(char)(ADDRESS_BEGIN_COUNTER+ (COUNTER_SIZE * index) + i)
+    }
+}
+    
+int ReemasRom::ReadFromROM(int index){
+    int value=0;
+    for(int i= this->_valueSize -1; i>=0 ; i--){
+      int data = ReadByteFromROM((char)(this->_beginAddress + (this->_valueSize * index) + i));
+      value |= (data << (8*i)) ;
+    }
+    return value;
+}
+
+
+
+
+// class ReemasFs
+
+ReemasFs::ReemasFs(){
+    //_fs = fs;
+    if(!LittleFS.begin())
+        isFsOk =false;
+    else
+        isFsOk =true;
+    
+}
+ ReemasFs::~ReemasFs(){
+    //delete(file);
+    LittleFS.end();
+    isFsOk =false;
+    //delete(_fs); 
+ }
+bool ReemasFs::OpenFile(const std::string& pathname, bool isReadOnly /*= true*/){
+   if(isFsOk){
+        if(isReadOnly)
+            file = LittleFS.open(String(pathname.c_str()),"r");
+        else
+            file = LittleFS.open(String(pathname.c_str()),"w");
+        size = file.available();
+        return true;
+    }
+    return false;
+}
+
+void ReemasFs::CloseFile(){
+    file.close();
+}
+
+int ReemasFs::GetFileSize(){
+    return size;
+}
+void ReemasFs::Write(const std::string& s) {
+    file.write((uint8_t*)(s.c_str()),(size_t)s.size());
+}
+void ReemasFs::Write(const char* SendBuffer, const int size) {
+    file.write((uint8_t*)(SendBuffer),(size_t)size);
+}
+std::string ReemasFs::Read() {
+    std::string s= std::string(file.readStringUntil('\n').c_str());
+    return s;
+}
+int ReemasFs::Read(char * Receptionbuffer, int sizeBuffer) {
+    return file.readBytes(Receptionbuffer,sizeBuffer);
+}
+
 
 ReemasRfid *ReemasRfid::_instance = nullptr;
 
@@ -206,3 +379,14 @@ void ReemasRfid::processProcessingState(Event event)
       break;
   }
 }
+
+
+
+
+
+
+
+
+
+
+
