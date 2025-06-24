@@ -1,11 +1,11 @@
 #include <Arduino.h>
 #include "../include/BSP.hpp"
 
-#include "../lib/Infrastructure/RfidCommunication/RfidCommunication.hpp"
-#include "../lib/Infrastructure/RfidCommunication/RfidCommunication.cpp"
+#include "../lib/Infrastructure/RfidCommunication/ReemasRfid.hpp"
+
 
 BSP bsp;
-RfidCommunication rfid(bsp, BSP::DATA0_PIN, BSP::DATA1_PIN, BSP::CP_PIN);
+ReemasRfid rfid(bsp, BSP::DATA0_PIN, BSP::DATA1_PIN, BSP::CP_PIN);
 
 void setup()
 {
@@ -17,7 +17,7 @@ void setup()
 
 void loop()
 {
-  rfid.handleEvent(RfidCommunication::Event::TIMEOUT);
+  rfid.handleEvent(ReemasRfid::Event::TIMEOUT);
 
   if (rfid.isCardDetected() && rfid.isValid())
   {
