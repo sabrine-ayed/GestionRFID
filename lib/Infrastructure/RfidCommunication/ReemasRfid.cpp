@@ -4,8 +4,8 @@ ReemasRfid *ReemasRfid::_instance = nullptr;
 
 ReemasRfid::ReemasRfid(BSP &bsp, uint8_t data0Pin, uint8_t data1Pin, uint8_t cpPin)
     : _bsp(bsp), _data0Pin(data0Pin), _data1Pin(data1Pin), _cpPin(cpPin),
-      _currentState(new IdleState()), _currentStateId(StateId::IDLE),
-      _cardData(0), _lastBitTime(0), _isValid(false), _cardId(0), _bitCount(0)
+      _currentStateId(StateId::IDLE), _cardData(0), _lastBitTime(0), 
+      _isValid(false), _cardId(0), _bitCount(0)
 {
   _instance = this;
 }
@@ -22,7 +22,18 @@ void ReemasRfid::begin()
 
 void ReemasRfid::handleEvent(Event event)
 {
-  _currentState->handleEvent(*this, event);
+  switch (_currentStateId)
+  {
+    case StateId::IDLE:
+      processIdleState(event);
+      break;
+    case StateId::RECEIVING:
+      processReceivingState(event);
+      break;
+    case StateId::PROCESSING:
+      processProcessingState(event);
+      break;
+  }
 }
 
 bool ReemasRfid::isCardDetected() const
@@ -38,6 +49,16 @@ uint32_t ReemasRfid::getCardId() const
 bool ReemasRfid::isValid() const
 {
   return _isValid;
+}
+
+void ReemasRfid::reset()
+{
+  _bitCount = 0;
+  _cardData = 0;
+  _cardId = 0;
+  _cardDetected = false;
+  _isValid = false;
+  _currentStateId = StateId::IDLE;
 }
 
 void IRAM_ATTR ReemasRfid::data0Interrupt()
@@ -111,88 +132,77 @@ bool ReemasRfid::validateParity()
   return (evenParity == calculatedEvenParity) && (oddParity == calculatedOddParity);
 }
 
-void ReemasRfid::changeState(RfidState *newState, StateId newStateId)
-{
-  delete _currentState;
-  _currentState = newState;
-  _currentStateId = newStateId;
-}
-
-void IdleState::handleEvent(ReemasRfid &rfid, ReemasRfid::Event event)
+void ReemasRfid::processIdleState(Event event)
 {
   switch (event)
   {
-  case ReemasRfid::Event::BIT_RECEIVED:
-    rfid.changeState(new ReceivingState(), ReemasRfid::StateId::RECEIVING);
-    break;
-  case ReemasRfid::Event::CARD_DETECTED:
-    rfid._bsp.println("Card detected in idle state");
-    break;
-  default:
-    break;
+    case Event::BIT_RECEIVED:
+      _currentStateId = StateId::RECEIVING;
+      break;
+    case Event::CARD_DETECTED:
+      _bsp.println("Card detected in idle state");
+      break;
+    default:
+      break;
   }
 }
 
-void ReceivingState::handleEvent(ReemasRfid &rfid, ReemasRfid::Event event)
+void ReemasRfid::processReceivingState(Event event)
 {
   switch (event)
   {
-  case ReemasRfid::Event::BIT_RECEIVED:
-    if (rfid._bitCount == ReemasRfid::WIEGAND_BIT_COUNT)
-    {
-      rfid.changeState(new ProcessingState(), ReemasRfid::StateId::PROCESSING);
-      rfid.handleEvent(ReemasRfid::Event::TIMEOUT);
-    }
-    break;
-  case ReemasRfid::Event::TIMEOUT:
-    if (rfid._bsp.millis() - rfid._lastBitTime >= ReemasRfid::TIMEOUT_MS)
-    {
-      rfid.changeState(new ProcessingState(), ReemasRfid::StateId::PROCESSING);
-      rfid.handleEvent(ReemasRfid::Event::TIMEOUT);
-    }
-    break;
-  default:
-    break;
+    case Event::BIT_RECEIVED:
+      if (_bitCount == WIEGAND_BIT_COUNT)
+      {
+        _currentStateId = StateId::PROCESSING;
+        handleEvent(Event::TIMEOUT);
+      }
+      break;
+    case Event::TIMEOUT:
+      if (_bsp.millis() - _lastBitTime >= TIMEOUT_MS)
+      {
+        _currentStateId = StateId::PROCESSING;
+        handleEvent(Event::TIMEOUT);
+      }
+      break;
+    default:
+      break;
   }
 }
 
-void ProcessingState::handleEvent(ReemasRfid &rfid, ReemasRfid::Event event)
+void ReemasRfid::processProcessingState(Event event)
 {
   switch (event)
   {
-  case ReemasRfid::Event::TIMEOUT:
-  rfid._bsp.printf("Complete bits received: %010llX\n", rfid._cardData);
-  rfid._isValid = rfid.validateParity();
+    case Event::TIMEOUT:
+      _bsp.printf("Complete bits received: %010llX\n", _cardData);
+      _isValid = validateParity();
 
-  if (rfid._isValid) {
-    rfid._cardId = (rfid._cardData >> 1) & 0xFFFFFFFF;
-    rfid._bsp.println("Valid tag detected!");
-    rfid._bsp.printf("Card ID: %u (0x%08X)\n", rfid._cardId, rfid._cardId);
+      if (_isValid)
+      {
+        _cardId = (_cardData >> 1) & 0xFFFFFFFF;
+        _bsp.println("Valid tag detected!");
+        _bsp.printf("Card ID: %u (0x%08X)\n", _cardId, _cardId);
 
-    // Marquer que la carte est prête pour traitement FSM
-    rfid._cardDetected = true;
+        // Marquer que la carte est prête pour traitement FSM
+        _cardDetected = true;
 
-    // PAS de reset ici ! attendre que la FSM traite la carte
-  } else {
-    rfid._bsp.println("Parity error, invalid tag.");
-    rfid.handleEvent(ReemasRfid::Event::INVALID_PARITY);
+        // PAS de reset ici ! attendre que la FSM traite la carte
+      }
+      else
+      {
+        _bsp.println("Parity error, invalid tag.");
+        handleEvent(Event::INVALID_PARITY);
+      }
+
+      _currentStateId = StateId::IDLE;
+      break;
+
+    case Event::INVALID_PARITY:
+      _cardId = 0;
+      _isValid = false;
+      break;
+    default:
+      break;
   }
-
-  rfid.changeState(new IdleState(), ReemasRfid::StateId::IDLE);
-  break;
-
-  case ReemasRfid::Event::INVALID_PARITY:
-    rfid._cardId = 0;
-    rfid._isValid = false;
-    break;
-  default:
-    break;
-  }
-}
-void ReemasRfid::reset() {
-  _bitCount = 0;
-  _cardData = 0;
-  _cardId = 0;
-  _cardDetected = false;
-  _isValid = false;
 }

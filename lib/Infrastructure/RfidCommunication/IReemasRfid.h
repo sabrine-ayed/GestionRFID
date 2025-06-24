@@ -1,10 +1,7 @@
-#ifndef IRFID_COMMUNICATION_HPP
-#define IRFID_COMMUNICATION_HPP
+#ifndef IREEMAS_RFID_HPP
+#define IREEMAS_RFID_HPP
 
 #include <Arduino.h>
-#include "BSP.hpp"
-
-class RfidState;
 
 // Interface pour la communication RFID
 class IReemasRfid
@@ -35,4 +32,5 @@ public:
   virtual bool isValid() const = 0;
   virtual void reset() = 0;
 };
-#endif
+
+#endif // IREEMAS_RFID_HPP
