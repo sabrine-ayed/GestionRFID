@@ -67,8 +67,9 @@ class IFile : public IHardwareComponent{
 };
 
 /// @brief RFID component service
-class IReemasRfid : public IHardwareComponent {
-    public:
+class IReemasRfid : public IHardwareComponent
+{
+public:
   enum class Event
   {
     BIT_RECEIVED,
@@ -85,7 +86,7 @@ class IReemasRfid : public IHardwareComponent {
   };
 
   virtual ~IReemasRfid() = default;
-  
+
   // Méthodes publiques de l'interface
   virtual void begin() = 0;
   virtual void handleEvent(Event event) = 0;
@@ -93,13 +94,8 @@ class IReemasRfid : public IHardwareComponent {
   virtual uint32_t getCardId() const = 0;
   virtual bool isValid() const = 0;
   virtual void reset() = 0;
-  virtual void pinMode(uint8_t pin, uint8_t mode) = 0;
-  virtual void attachInterrupt(uint8_t pin, void (*ISR)(), int mode) = 0;
-  virtual unsigned long millis() = 0;
-    
- 
-};
 
+};
 /// @brief abstract class define the hardware components needed for business
 class IHardwareInfrastructure {
   public :
