@@ -9,202 +9,170 @@
 #include <EEPROM.h>
 #include <LittleFS.h>
 
-ReemasSerial::ReemasSerial(HardwareSerial &s)
-{
-  hSerial = &s;
+
+
+ReemasSerial::ReemasSerial(HardwareSerial& s){
+    hSerial = &s;
 }
 
-ReemasSerial::ReemasSerial(HardwareSerial &s, size_t maxBufferRx)
-{
-  hSerial = &s;
-  hSerial->setRxBufferSize(maxBufferRx);
+ReemasSerial::ReemasSerial(HardwareSerial& s, size_t maxBufferRx){
+    hSerial = &s;
+    hSerial->setRxBufferSize(maxBufferRx);
 }
 
-int ReemasSerial::availableForReading()
-{
-  return hSerial->available();
+int ReemasSerial::availableForReading(){
+    return hSerial->available();
 }
-int ReemasSerial::availableForWriting()
-{
-  return hSerial->availableForWrite();
+int ReemasSerial::availableForWriting(){
+    return hSerial->availableForWrite();
 }
-int ReemasSerial::read(char *buffer, int sizeBuffer)
-{
-  return hSerial->read(buffer, sizeBuffer);
+int ReemasSerial::read(char* buffer, int sizeBuffer){
+    return hSerial->read(buffer,sizeBuffer);
 }
-int ReemasSerial::write(char *buffer, int sizeBuffer)
-{
-  return hSerial->write(buffer, sizeBuffer);
+int ReemasSerial::write(char* buffer, int sizeBuffer){
+    return hSerial->write(buffer, sizeBuffer);
 }
-bool ReemasSerial::isErrorReading()
-{
-  return false; // to be reviewed
+bool ReemasSerial::isErrorReading(){
+    return false;// to be reviewed
 }
-bool ReemasSerial::isErrorWriting()
-{
-  return hSerial->getWriteError();
+bool ReemasSerial::isErrorWriting(){
+    return hSerial->getWriteError();
 }
 
-void ReemasSerial::flush()
-{
-  hSerial->flush(false);
+void ReemasSerial::flush(){
+    hSerial->flush(false);
 }
 
-// class ReemasTimer
-ReemasTimer::ReemasTimer(hw_timer_t &ht)
-{
-  _timerComponent = &ht;
+
+//class ReemasTimer
+ReemasTimer::ReemasTimer(hw_timer_t& ht){
+    _timerComponent = &ht;
 }
 
-void ReemasTimer::AttachInterrupt(void (*fn)(void), bool edge)
-{
-  timerAttachInterrupt(this->_timerComponent, fn, edge);
+void ReemasTimer::AttachInterrupt(void (*fn)(void), bool edge){
+    timerAttachInterrupt(this->_timerComponent, fn, edge);
 }
 
-void ReemasTimer::AlarmWrite(int count, bool loop)
-{
-  timerAlarmWrite(this->_timerComponent, count, loop);
+void ReemasTimer::AlarmWrite( int count, bool loop){
+    timerAlarmWrite(this->_timerComponent, count,  loop);
 }
-void ReemasTimer::AlarmEnable()
-{
-  timerAlarmEnable(this->_timerComponent);
+void ReemasTimer::AlarmEnable(){
+    timerAlarmEnable(this->_timerComponent);
 }
-void ReemasTimer::AlarmDisable()
-{
-  timerAlarmDisable(this->_timerComponent);
+void ReemasTimer::AlarmDisable(){
+    timerAlarmDisable(this->_timerComponent);
 }
 
-hw_timer_t *ReemasTimer::GetArduinoTimer()
-{
-  return _timerComponent;
+hw_timer_t* ReemasTimer::GetArduinoTimer(){
+    return _timerComponent;
 }
 
-// class DigitalIO
-int ReemasDigital::ReadDigital(int gpio)
-{
-  return digitalRead(gpio);
+//class DigitalIO
+int ReemasDigital::ReadDigital(int gpio){
+    return digitalRead(gpio);
 }
 
-void ReemasDigital::WriteDigital(int gpio, int value)
-{
-  digitalWrite(gpio, value);
+void ReemasDigital::WriteDigital(int gpio, int value){
+    digitalWrite(gpio,value);
 }
 
-// class ReemasRom
+//class ReemasRom 
 
-ReemasRom::ReemasRom(int eepromSize, int beginAddress, int valueSize)
-{
-  EEPROM.begin(eepromSize);
-  this->_eepromSize = eepromSize;
-  this->_beginAddress = beginAddress;
-  this->_valueSize = valueSize;
+ReemasRom::ReemasRom(int eepromSize,int beginAddress, int valueSize){
+     EEPROM.begin(eepromSize);
+     this->_eepromSize = eepromSize;
+     this->_beginAddress = beginAddress;
+     this->_valueSize = valueSize;
 }
-int ReemasRom::GetRomSize()
-{
-  return this->_eepromSize;
+int ReemasRom::GetRomSize(){
+    return this->_eepromSize;
 }
 
-int ReemasRom::GetBeginAddress()
-{
-  return this->_beginAddress;
+int ReemasRom::GetBeginAddress(){
+    return this->_beginAddress;
 }
 
-int ReemasRom::GetValueSize()
-{
-  return this->_valueSize;
+int ReemasRom::GetValueSize(){
+    return this->_valueSize;
 }
 
-void ReemasRom::SaveByteToROM(char address, char data)
-{
-  EEPROM.write(address, data);
-  EEPROM.commit();
+void ReemasRom::SaveByteToROM(char address,char data){
+    EEPROM.write(address, data);
+    EEPROM.commit();
 }
-char ReemasRom::ReadByteFromROM(char address)
-{
-  return (char)EEPROM.read(address);
+char ReemasRom::ReadByteFromROM(char address){
+    return (char)EEPROM.read(address);
 }
 
-void ReemasRom::SaveToROM(int index, int value)
-{
-  for (int i = 0; i < this->_valueSize; i++)
-  { // COUNTER_SIZE
-    char data = (value >> (8 * i)) & 0xff;
-    SaveByteToROM((char)(this->_beginAddress + (this->_valueSize * index) + i), data); //(char)(ADDRESS_BEGIN_COUNTER+ (COUNTER_SIZE * index) + i)
-  }
+void ReemasRom::SaveToROM(int index,int value){
+    for(int i=0; i < this->_valueSize ; i++){ //COUNTER_SIZE
+      char data = (value >> (8*i)) & 0xff;
+      SaveByteToROM((char)(this->_beginAddress + (this->_valueSize * index) + i),data); //(char)(ADDRESS_BEGIN_COUNTER+ (COUNTER_SIZE * index) + i)
+    }
+}
+    
+int ReemasRom::ReadFromROM(int index){
+    int value=0;
+    for(int i= this->_valueSize -1; i>=0 ; i--){
+      int data = ReadByteFromROM((char)(this->_beginAddress + (this->_valueSize * index) + i));
+      value |= (data << (8*i)) ;
+    }
+    return value;
 }
 
-int ReemasRom::ReadFromROM(int index)
-{
-  int value = 0;
-  for (int i = this->_valueSize - 1; i >= 0; i--)
-  {
-    int data = ReadByteFromROM((char)(this->_beginAddress + (this->_valueSize * index) + i));
-    value |= (data << (8 * i));
-  }
-  return value;
-}
+
+
 
 // class ReemasFs
 
-ReemasFs::ReemasFs()
-{
-  //_fs = fs;
-  if (!LittleFS.begin())
-    isFsOk = false;
-  else
-    isFsOk = true;
-}
-ReemasFs::~ReemasFs()
-{
-  // delete(file);
-  LittleFS.end();
-  isFsOk = false;
-  // delete(_fs);
-}
-bool ReemasFs::OpenFile(const std::string &pathname, bool isReadOnly /*= true*/)
-{
-  if (isFsOk)
-  {
-    if (isReadOnly)
-      file = LittleFS.open(String(pathname.c_str()), "r");
+ReemasFs::ReemasFs(){
+    //_fs = fs;
+    if(!LittleFS.begin())
+        isFsOk =false;
     else
-      file = LittleFS.open(String(pathname.c_str()), "w");
-    size = file.available();
-    return true;
-  }
-  return false;
+        isFsOk =true;
+    
+}
+ ReemasFs::~ReemasFs(){
+    //delete(file);
+    LittleFS.end();
+    isFsOk =false;
+    //delete(_fs); 
+ }
+bool ReemasFs::OpenFile(const std::string& pathname, bool isReadOnly /*= true*/){
+   if(isFsOk){
+        if(isReadOnly)
+            file = LittleFS.open(String(pathname.c_str()),"r");
+        else
+            file = LittleFS.open(String(pathname.c_str()),"w");
+        size = file.available();
+        return true;
+    }
+    return false;
 }
 
-void ReemasFs::CloseFile()
-{
-  file.close();
+void ReemasFs::CloseFile(){
+    file.close();
 }
 
-int ReemasFs::GetFileSize()
-{
-  return size;
+int ReemasFs::GetFileSize(){
+    return size;
 }
-void ReemasFs::Write(const std::string &s)
-{
-  file.write((uint8_t *)(s.c_str()), (size_t)s.size());
+void ReemasFs::Write(const std::string& s) {
+    file.write((uint8_t*)(s.c_str()),(size_t)s.size());
 }
-void ReemasFs::Write(const char *SendBuffer, const int size)
-{
-  file.write((uint8_t *)(SendBuffer), (size_t)size);
+void ReemasFs::Write(const char* SendBuffer, const int size) {
+    file.write((uint8_t*)(SendBuffer),(size_t)size);
 }
-std::string ReemasFs::Read()
-{
-  std::string s = std::string(file.readStringUntil('\n').c_str());
-  return s;
+std::string ReemasFs::Read() {
+    std::string s= std::string(file.readStringUntil('\n').c_str());
+    return s;
 }
-int ReemasFs::Read(char *Receptionbuffer, int sizeBuffer)
-{
-  return file.readBytes(Receptionbuffer, sizeBuffer);
+int ReemasFs::Read(char * Receptionbuffer, int sizeBuffer) {
+    return file.readBytes(Receptionbuffer,sizeBuffer);
 }
 
-// ============================================================================
-// IMPLÉMENTATION RFID CORRIGÉE
-// ============================================================================
+// Dans PlatformHardware.cpp - Implémentation ReemasRfid sans BSP
 
 ReemasRfid *ReemasRfid::_instance = nullptr;
 
@@ -244,7 +212,7 @@ void ReemasRfid::handleEvent(Event event)
 
 bool ReemasRfid::isCardDetected() const
 {
-  return _cardDetected;
+  return _currentStateId == StateId::PROCESSING;
 }
 
 uint32_t ReemasRfid::getCardId() const
@@ -265,24 +233,6 @@ void ReemasRfid::reset()
   _cardDetected = false;
   _isValid = false;
   _currentStateId = StateId::IDLE;
-}
-
-// NOUVELLE MÉTHODE : Vérification périodique du timeout
-void ReemasRfid::checkTimeout()
-{
-  if (_currentStateId == StateId::RECEIVING &&
-      millis() - _lastBitTime >= TIMEOUT_MS)
-  {
-    handleEvent(Event::TIMEOUT);
-  }
-}
-
-// NOUVELLE MÉTHODE : Marquer la carte comme traitée
-void ReemasRfid::markCardProcessed()
-{
-  _cardDetected = false;
-  _currentStateId = StateId::IDLE;
-  reset();
 }
 
 void IRAM_ATTR ReemasRfid::data0Interrupt()
@@ -309,12 +259,8 @@ void IRAM_ATTR ReemasRfid::cpInterrupt()
   }
 }
 
-// MÉTHODE CORRIGÉE : Protection contre les interruptions
 void ReemasRfid::addBit(bool bit)
 {
-  // Protection critique
-  noInterrupts();
-
   if (_bitCount < WIEGAND_BIT_COUNT)
   {
     _cardData <<= 1;
@@ -324,50 +270,39 @@ void ReemasRfid::addBit(bool bit)
 
     if (_bitCount == WIEGAND_BIT_COUNT)
     {
-      interrupts(); // Réactiver avant l'événement
       handleEvent(Event::BIT_RECEIVED);
-      return;
     }
   }
-
-  interrupts(); // Réactiver les interruptions
 }
 
-// MÉTHODE CORRIGÉE : Validation de parité améliorée
 bool ReemasRfid::validateParity()
 {
-  if (_bitCount != WIEGAND_BIT_COUNT)
-  {
-#ifdef DEBUG_RFID
-    Serial.printf("Invalid bit count: %d (expected %d)\n", _bitCount, WIEGAND_BIT_COUNT);
-#endif
-    return false;
-  }
-
-  uint64_t data = _cardData;
-  bool evenParity = (data >> 33) & 1;
-  bool oddParity = data & 1;
+  uint64_t data = _cardData & 0x3FFFFFFFFULL; // 34 bits
+  bool evenParity = (_cardData >> 33) & 1;
+  bool oddParity = _cardData & 1;
 
   uint8_t calculatedEvenParity = 0;
-  uint8_t calculatedOddParity = 1;
+  uint8_t calculatedOddParity = 1; // Initialize to 1 for odd parity
 
-  // Calculate even parity (bits 1-16 after MSB parity bit)
+  // Calculate even parity (bits 2-17)
   for (int i = 1; i <= 16; i++)
   {
-    calculatedEvenParity ^= (data >> (33 - i)) & 1;
+    calculatedEvenParity ^= (data >> (32 - i)) & 1;
   }
 
-  // Calculate odd parity (bits 17-32 before LSB parity bit)
+  // Calculate odd parity (bits 18-33)
   for (int i = 17; i <= 32; i++)
   {
-    calculatedOddParity ^= (data >> (33 - i)) & 1;
+    calculatedOddParity ^= (data >> (32 - i)) & 1;
   }
 
 #ifdef DEBUG_RFID
-  Serial.printf("Card Data: 0x%010llX\n", data);
-  Serial.printf("Bit Count: %d\n", _bitCount);
-  Serial.printf("Even Parity - Received: %d, Calculated: %d\n", evenParity, calculatedEvenParity);
-  Serial.printf("Odd Parity - Received: %d, Calculated: %d\n", oddParity, calculatedOddParity);
+  Serial.println("Parity Validation Details:");
+  Serial.printf("Received Even Parity: %d, Calculated: %d\n", evenParity, calculatedEvenParity);
+  Serial.printf("Received Odd Parity: %d, Calculated: %d\n", oddParity, calculatedOddParity);
+  Serial.printf("Even Parity Valid: %s, Odd Parity Valid: %s\n",
+                evenParity == calculatedEvenParity ? "Yes" : "No",
+                oddParity == calculatedOddParity ? "Yes" : "No");
 #endif
 
   return (evenParity == calculatedEvenParity) && (oddParity == calculatedOddParity);
@@ -413,7 +348,6 @@ void ReemasRfid::processReceivingState(Event event)
   }
 }
 
-// MÉTHODE CORRIGÉE : Gestion d'état améliorée
 void ReemasRfid::processProcessingState(Event event)
 {
   switch (event)
@@ -425,7 +359,7 @@ void ReemasRfid::processProcessingState(Event event)
 
     _isValid = validateParity();
 
-    if (_isValid && _bitCount == WIEGAND_BIT_COUNT)
+    if (_isValid)
     {
       _cardId = (_cardData >> 1) & 0xFFFFFFFF;
 
@@ -433,26 +367,27 @@ void ReemasRfid::processProcessingState(Event event)
       Serial.println("Valid tag detected!");
       Serial.printf("Card ID: %u (0x%08X)\n", _cardId, _cardId);
 #endif
+
+      // Marquer que la carte est prête pour traitement FSM
       _cardDetected = true;
-      // Rester en état PROCESSING jusqu'à ce que markCardProcessed() soit appelée
+
+      // PAS de reset ici ! attendre que la FSM traite la carte
     }
     else
     {
 #ifdef DEBUG_RFID
-      Serial.println("Parity error or incomplete data, invalid tag.");
+      Serial.println("Parity error, invalid tag.");
 #endif
       handleEvent(Event::INVALID_PARITY);
     }
+
+    _currentStateId = StateId::IDLE;
     break;
 
   case Event::INVALID_PARITY:
     _cardId = 0;
     _isValid = false;
-    _cardDetected = false;
-    _currentStateId = StateId::IDLE;
-    reset();
     break;
-
   default:
     break;
   }

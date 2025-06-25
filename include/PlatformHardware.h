@@ -130,10 +130,6 @@ public:
   bool isValid() const override;
   void reset() override;
 
-  // NOUVELLES MÉTHODES AJOUTÉES
-  void checkTimeout();      // À appeler périodiquement dans la boucle principale
-  void markCardProcessed(); // À appeler après traitement de la carte
-
 private:
   static ReemasRfid *_instance;
   static void IRAM_ATTR data0Interrupt();
@@ -159,7 +155,6 @@ private:
 };
 
 #pragma endregion
-
 #pragma region ArduinoHardware
 
 class ArduinoHardware : public IHardwareInfrastructure

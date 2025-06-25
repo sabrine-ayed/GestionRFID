@@ -65,8 +65,7 @@ void loop()
   {
     lastCheckTime = currentTime;
 
-    // Vérifier le timeout pour la réception des données
-    reemasRfid.checkTimeout();
+
 
     // Vérifier si une carte est détectée
     bool currentCardState = reemasRfid.isCardDetected();
@@ -105,7 +104,6 @@ void loop()
     if (currentCardState && (currentTime - cardDetectedTime >= CARD_PROCESSING_TIMEOUT))
     {
       Serial.println("Timeout: Fin du traitement de la carte");
-      reemasRfid.markCardProcessed();
       digitalWrite(HW_STATE, LOW);
       lastCardState = false;
     }
