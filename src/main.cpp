@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include "PlatformHardware.h"
+#include "PlatformHardware.cpp"
 #include "SPC.h"
 
 // Variables globales pour les composants hardware
