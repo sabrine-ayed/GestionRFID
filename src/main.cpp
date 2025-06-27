@@ -1,212 +1,128 @@
 #include <Arduino.h>
 #include "PlatformHardware.h"
 #include "PlatformHardware.cpp"
-#include "SPC.h"
 
-// Variables globales pour les composants hardware
-ReemasDigital digital;
-ReemasRom reemasRom(512, 0, 4);
-ReemasFs reemasFs;
-ReemasRfid reemasRfid(IN_12, IN_13, IN_14); // Utilisation des définitions de SPC.h
+// Configuration des pins RFID
+#define DATA0_PIN    22   // Pin pour DATA0 (changez selon votre branchement)
+#define DATA1_PIN    23   // Pin pour DATA1 (changez selon votre branchement) 
+#define CP_PIN       21   // Pin pour Card Present (changez selon votre branchement)
+
+// LED pour indication visuelle (optionnel)
+#define LED_PIN      2  // LED intégrée Arduino/ESP32
+
+// Instance RFID
+ReemasRfid* rfidReader = nullptr;
 
 // Variables pour le test
-unsigned long lastCheckTime = 0;
-const unsigned long CHECK_INTERVAL = 100; // Vérifier toutes les 100ms
-bool lastCardState = false;
-unsigned long cardDetectedTime = 0;
-const unsigned long CARD_PROCESSING_TIMEOUT = 2000; // 2 secondes pour traiter une carte
+unsigned long lastCheck = 0;
+unsigned long lastStatusPrint = 0;
+const unsigned long CHECK_INTERVAL = 10;      // Vérifier toutes les 10ms
+const unsigned long STATUS_INTERVAL = 5000;   // Afficher le statut toutes les 5s
 
-// Déclarations de fonctions
-void testCardProcessing(uint32_t cardId);
-void printRfidDebugInfo();
-void resetRfidSystem();
-
-void setup()
-{
-  // Initialisation de la communication série pour debug
-  Serial.begin(115200);
-  delay(1000); // Attendre que le port série soit prêt
-
-  Serial.println("=== TEST SERVICE RFID ===");
-  Serial.println("Initialisation...");
-
-  // Configuration des pins de sortie pour feedback visuel
-  pinMode(HW_STATE, OUTPUT);  // LED_BPT
-  pinMode(BUZ_Alarm, OUTPUT); // BUZZER
-  pinMode(OUT_1, OUTPUT);     // BARRIER_OPEN pour test
-
-  // État initial des sorties
-  digitalWrite(HW_STATE, LOW);
-  digitalWrite(BUZ_Alarm, LOW);
-  digitalWrite(OUT_1, LOW);
-
-  // Initialisation du service RFID
-  Serial.println("Initialisation du service RFID...");
-  reemasRfid.begin();
-
-  Serial.println("Service RFID initialisé");
-  Serial.printf("Pins utilisées: DATA0=%d, DATA1=%d, CP=%d\n", IN_12, IN_13, IN_14);
-
-  // Test initial des pins
-  Serial.println("Test des pins d'entrée RFID:");
-  Serial.printf("DATA0 (pin %d): %d\n", IN_12, digitalRead(IN_12));
-  Serial.printf("DATA1 (pin %d): %d\n", IN_13, digitalRead(IN_13));
-  Serial.printf("CP (pin %d): %d\n", IN_14, digitalRead(IN_14));
-
-  Serial.println("Système prêt - Présentez une carte RFID...");
-  Serial.println("==========================================");
+void setup() {
+    // Initialisation série
+    Serial.begin(115200);
+    while (!Serial) {
+        delay(10); // Attendre que le port série soit prêt
+    }
+    
+    Serial.println("=================================");
+    Serial.println("   TEST REEMAS RFID - DEBUT");
+    Serial.println("=================================");
+    Serial.printf("Pins utilisées - DATA0: %d, DATA1: %d, CP: %d\n", DATA0_PIN, DATA1_PIN, CP_PIN);
+    
+    // Configuration LED (optionnel)
+    pinMode(LED_PIN, OUTPUT);
+    digitalWrite(LED_PIN, LOW);
+    
+    // Création et initialisation du lecteur RFID
+    rfidReader = new ReemasRfid(DATA0_PIN, DATA1_PIN, CP_PIN);
+    rfidReader->begin();
+    
+    Serial.println("Lecteur RFID initialisé");
+    Serial.println("Approchez une carte RFID...");
+    Serial.println("---------------------------------");
+    
+    lastCheck = millis();
+    lastStatusPrint = millis();
 }
 
-void loop()
-{
-  unsigned long currentTime = millis();
-
-  // Vérification périodique du timeout RFID
-  if (currentTime - lastCheckTime >= CHECK_INTERVAL)
-  {
-    lastCheckTime = currentTime;
-
-
-
-    // Vérifier si une carte est détectée
-    bool currentCardState = reemasRfid.isCardDetected();
-
-    // Nouvelle carte détectée
-    if (currentCardState && !lastCardState)
-    {
-      cardDetectedTime = currentTime;
-      lastCardState = true;
-
-      // Feedback visuel et sonore
-      digitalWrite(HW_STATE, HIGH);
-      digitalWrite(BUZ_Alarm, HIGH);
-      delay(100);
-      digitalWrite(BUZ_Alarm, LOW);
-
-      // Affichage des informations de la carte
-      Serial.println("\n*** CARTE DÉTECTÉE ***");
-      Serial.printf("Temps: %lu ms\n", currentTime);
-      Serial.printf("ID Carte: %u (0x%08X)\n", reemasRfid.getCardId(), reemasRfid.getCardId());
-      Serial.printf("Validité: %s\n", reemasRfid.isValid() ? "VALIDE" : "INVALIDE");
-
-      if (reemasRfid.isValid())
-      {
-        Serial.println("✓ Carte acceptée");
-        testCardProcessing(reemasRfid.getCardId());
-      }
-      else
-      {
-        Serial.println("✗ Carte rejetée (erreur de parité)");
-      }
-      Serial.println("**********************\n");
+void loop() {
+    unsigned long currentTime = millis();
+    
+    // Vérification périodique du timeout
+    if (currentTime - lastCheck >= CHECK_INTERVAL) {
+        lastCheck = currentTime;
+        rfidReader->checkTimeout();
+        
+        // Vérifier s'il y a une nouvelle carte
+        if (rfidReader->hasNewCard()) {
+            uint32_t cardId = rfidReader->getCardId();
+            
+            // Extraction des informations de la carte
+            uint16_t facilityCode = (cardId >> 16) & 0xFF;
+            uint16_t cardNumber = cardId & 0xFFFF;
+            
+            // Affichage des informations
+            Serial.println("╔════════════════════════════════╗");
+            Serial.println("║        NOUVELLE CARTE          ║");
+            Serial.println("╠════════════════════════════════╣");
+            Serial.printf("║ ID Complet : %-10u (0x%08X) ║\n", cardId, cardId);
+            Serial.printf("║ Code Site  : %-18u ║\n", facilityCode);
+            Serial.printf("║ N° Carte   : %-18u ║\n", cardNumber);
+            Serial.println("╚════════════════════════════════╝");
+            
+            // Clignoter la LED
+            for (int i = 0; i < 6; i++) {
+                digitalWrite(LED_PIN, HIGH);
+                delay(100);
+                digitalWrite(LED_PIN, LOW);
+                delay(100);
+            }
+        }
     }
-
-    // Gestion du timeout de traitement de carte
-    if (currentCardState && (currentTime - cardDetectedTime >= CARD_PROCESSING_TIMEOUT))
-    {
-      Serial.println("Timeout: Fin du traitement de la carte");
-      digitalWrite(HW_STATE, LOW);
-      lastCardState = false;
+    
+    // Affichage périodique du statut (debug)
+    if (currentTime - lastStatusPrint >= STATUS_INTERVAL) {
+        lastStatusPrint = currentTime;
+        
+        Serial.println("\n--- STATUT LECTEUR RFID ---");
+        Serial.printf("Carte détectée : %s\n", rfidReader->isCardDetected() ? "OUI" : "NON");
+        Serial.printf("Données valides: %s\n", rfidReader->isValid() ? "OUI" : "NON");
+        Serial.printf("Nb erreurs     : %lu\n", rfidReader->getErrorCount());
+        Serial.printf("Uptime         : %lu ms\n", currentTime);
+        Serial.println("---------------------------\n");
     }
-  }
-
-  // Commandes série pour debug (optionnel)
-  if (Serial.available())
-  {
-    String command = Serial.readString();
-    command.trim();
-
-    if (command == "debug")
-    {
-      printRfidDebugInfo();
-    }
-    else if (command == "reset")
-    {
-      resetRfidSystem();
-    }
-    else if (command == "help")
-    {
-      Serial.println("Commandes disponibles:");
-      Serial.println("  debug - Afficher infos debug RFID");
-      Serial.println("  reset - Reset du système RFID");
-      Serial.println("  help  - Afficher cette aide");
-    }
-  }
+    
+    // Petite pause pour éviter de surcharger le processeur
+    delay(1);
 }
 
-// Fonction de test pour simuler le traitement d'une carte
-void testCardProcessing(uint32_t cardId)
-{
-  Serial.println("--- Simulation traitement carte ---");
-
-  // Simulation d'une vérification en base de données
-  delay(500); // Simule le temps de traitement
-
-  // Exemple de logique métier simple
-  if (cardId > 0)
-  {
-    Serial.printf("Carte ID %u: Accès autorisé\n", cardId);
-
-    // Simulation d'ouverture de barrière
-    Serial.println("Commande: Ouverture barrière");
-    digitalWrite(OUT_1, HIGH); // BARRIER_OPEN
-    delay(1000);
-    digitalWrite(OUT_1, LOW);
-
-    // Feedback positif - 3 bips courts
-    for (int i = 0; i < 3; i++)
-    {
-      digitalWrite(BUZ_Alarm, HIGH);
-      delay(200);
-      digitalWrite(BUZ_Alarm, LOW);
-      delay(200);
-    }
-  }
-  else
-  {
-    Serial.println("Carte invalide: Accès refusé");
-
-    // Feedback négatif - 1 bip long
-    digitalWrite(BUZ_Alarm, HIGH);
-    delay(1000);
-    digitalWrite(BUZ_Alarm, LOW);
-  }
-
-  Serial.println("--- Fin traitement carte ---");
+// Fonctions utilitaires pour debug avancé (optionnel)
+void printDetailedStatus() {
+    Serial.println("\n╔══════════════════════════════════╗");
+    Serial.println("║         DEBUG DÉTAILLÉ           ║");
+    Serial.println("╠══════════════════════════════════╣");
+    Serial.printf("║ Carte détectée : %-15s ║\n", rfidReader->isCardDetected() ? "OUI" : "NON");
+    Serial.printf("║ Données valides: %-15s ║\n", rfidReader->isValid() ? "OUI" : "NON");
+    Serial.printf("║ ID Carte       : 0x%08X       ║\n", rfidReader->getCardId());
+    Serial.printf("║ Erreurs        : %-15lu ║\n", rfidReader->getErrorCount());
+    Serial.println("╚══════════════════════════════════╝\n");
 }
 
-// Fonction utilitaire pour debug avancé
-void printRfidDebugInfo()
-{
-  Serial.println("\n=== DEBUG RFID ===");
-  Serial.printf("État actuel: %s\n", reemasRfid.isCardDetected() ? "Carte présente" : "Pas de carte");
-  Serial.printf("Dernière carte valide: %s\n", reemasRfid.isValid() ? "Oui" : "Non");
-  Serial.printf("ID dernière carte: %u\n", reemasRfid.getCardId());
-  Serial.printf("Temps système: %lu ms\n", millis());
-
-  // État des pins
-  Serial.println("État des pins RFID:");
-  Serial.printf("  DATA0 (pin %d): %d\n", IN_12, digitalRead(IN_12));
-  Serial.printf("  DATA1 (pin %d): %d\n", IN_13, digitalRead(IN_13));
-  Serial.printf("  CP (pin %d): %d\n", IN_14, digitalRead(IN_14));
-
-  // État des sorties
-  Serial.println("État des sorties:");
-  Serial.printf("  LED (pin %d): %d\n", HW_STATE, digitalRead(HW_STATE));
-  Serial.printf("  BUZZER (pin %d): %d\n", BUZ_Alarm, digitalRead(BUZ_Alarm));
-
-  Serial.println("=================\n");
+// Fonction pour reset manuel (appelable depuis le moniteur série)
+void resetRfid() {
+    Serial.println(">>> RESET MANUEL DU LECTEUR RFID <<<");
+    rfidReader->reset();
+    rfidReader->clearErrorCount();
+    Serial.println(">>> RESET TERMINÉ <<<\n");
 }
 
-// Fonction appelable pour reset manuel du système RFID
-void resetRfidSystem()
-{
-  Serial.println("Reset du système RFID...");
-  reemasRfid.reset();
-  digitalWrite(HW_STATE, LOW);
-  digitalWrite(BUZ_Alarm, LOW);
-  digitalWrite(OUT_1, LOW);
-  lastCardState = false;
-  cardDetectedTime = 0;
-  Serial.println("Reset terminé - Système prêt");
+// Fonction pour tester la connexion des pins
+void testPins() {
+    Serial.println("\n>>> TEST DES PINS RFID <<<");
+    Serial.printf("DATA0 (pin %d): %s\n", DATA0_PIN, digitalRead(DATA0_PIN) ? "HIGH" : "LOW");
+    Serial.printf("DATA1 (pin %d): %s\n", DATA1_PIN, digitalRead(DATA1_PIN) ? "HIGH" : "LOW");
+    Serial.printf("CP (pin %d)   : %s\n", CP_PIN, digitalRead(CP_PIN) ? "HIGH" : "LOW");
+    Serial.println(">>> FIN TEST PINS <<<\n");
 }
